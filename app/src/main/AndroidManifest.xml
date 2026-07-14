@@ -101,8 +101,12 @@
                 <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:mimeType="application/vnd.android.package-archive" />
-                <data android:pathPattern=".*" />
-                <data android:mimeType="*/*" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/xapk-package-archive" />
+                <data android:mimeType="application/vnd.xapk" />
+                <data android:mimeType="application/apks" />
+                <data android:mimeType="application/apkm" />
             </intent-filter>
 
             <intent-filter>
@@ -113,8 +117,12 @@
 
                 <data android:mimeType="application/vnd.android.package-archive" />
 
-                <data android:pathPattern=".*" />
-                <data android:mimeType="*/*" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/xapk-package-archive" />
+                <data android:mimeType="application/vnd.xapk" />
+                <data android:mimeType="application/apks" />
+                <data android:mimeType="application/apkm" />
             </intent-filter>
 
             <intent-filter android:priority="10">
