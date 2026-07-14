@@ -123,6 +123,8 @@
                 <data android:mimeType="application/vnd.xapk" />
                 <data android:mimeType="application/apks" />
                 <data android:mimeType="application/apkm" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/zip" />
             </intent-filter>
 
             <intent-filter android:priority="10">
