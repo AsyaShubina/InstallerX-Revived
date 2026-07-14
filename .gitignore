@@ -32,3 +32,8 @@ keystore/
 *.iml
 .DS_Store
 /.agents
+
+release.lnk
+module_template.zip
+InstallerX Revived 自动构建.bat
+module/
