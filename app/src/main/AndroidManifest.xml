@@ -101,7 +101,6 @@
                 <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:mimeType="application/vnd.android.package-archive" />
-                <data android:mimeType="application/vnd.android.package-archive" />
                 <data android:mimeType="application/octet-stream" />
                 <data android:mimeType="application/xapk-package-archive" />
                 <data android:mimeType="application/vnd.xapk" />
@@ -117,7 +116,6 @@
 
                 <data android:mimeType="application/vnd.android.package-archive" />
 
-                <data android:mimeType="application/vnd.android.package-archive" />
                 <data android:mimeType="application/octet-stream" />
                 <data android:mimeType="application/xapk-package-archive" />
                 <data android:mimeType="application/vnd.xapk" />
