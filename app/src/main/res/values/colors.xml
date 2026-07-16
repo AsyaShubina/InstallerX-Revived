@@ -6,12 +6,6 @@
     <color name="light_primary_container">#FFCBEEA5</color>
     <color name="light_error">#FFB3261E</color>
 
-    <color name="dark_primary">#FFAFD18C</color>
-    <color name="dark_primary_container">#FF334E17</color>
-    <color name="dark_secondary">#FFBFCBAD</color>
-    <color name="dark_tertiary">#FFA0CFCC</color>
-    <color name="dark_error">#FFF2B8B5</color>
-
     <color name="icon_background">#FFFFFFFF</color>
     <color name="icon_mouth">#FFFF2233</color>
     <color name="icon_head">#FF99CCEE</color>
