@@ -35,5 +35,6 @@ keystore/
 
 release.lnk
 module_template.zip
-InstallerX Revived 自动构建.bat
+"InstallerX Revived 自动构建.bat"
 module/
+/logs
