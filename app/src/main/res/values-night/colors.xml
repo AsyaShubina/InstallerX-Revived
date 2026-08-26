@@ -6,4 +6,6 @@
     <color name="ic_launcher_foreground_secondary">#E1F0D0</color>
     <color name="ic_launcher_foreground_accent">#FFB4AB</color>
 
+    <color name="icon_background">#000000</color>
+
 </resources>
