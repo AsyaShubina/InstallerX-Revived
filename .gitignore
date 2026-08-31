@@ -33,7 +33,7 @@ keystore/
 .DS_Store
 /.agents
 
-release.lnk
+apk.lnk
 module_template.zip
 InstallerX Revived *.bat
 module/
