@@ -3,7 +3,6 @@ name: Preview Release
 on:
   push:
     branches: [ "main" ]
-    # Build only when application code or build inputs change.
     paths:
       - 'app/src/**'
       - 'app/build.gradle.kts'
@@ -26,7 +25,6 @@ on:
 jobs:
   build_and_prerelease:
     name: Build and Publish Preview
-    # Skip preview release for version bumps or explicitly skipped commits
     if: |
       !startsWith(github.event.head_commit.message, 'chore: bump version') &&
       !startsWith(github.event.head_commit.message, 'chore(release)') &&
@@ -57,11 +55,9 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # Accept the terms of use to suppress the caching licensing warning
           build-scan-terms-of-use-url: "https://gradle.com/help/legal-terms-of-use"
           build-scan-terms-of-use-agree: "yes"
           build-scan-publish: false
-          # Main branch builds are allowed to update the cache
           cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
 
@@ -78,6 +74,7 @@ jobs:
           if [ -z "${SIGNING_STORE_PASSWORD:-}" ] || [ -z "${SIGNING_KEY_STORE_BASE64:-}" ] || [ -z "${SIGNING_KEY_PASSWORD:-}" ] || [ -z "${SIGNING_KEY_ALIAS:-}" ]; then
             exit 0
           fi
+
           mkdir -p keystore
           echo "${SIGNING_KEY_STORE_BASE64}" | base64 --decode > keystore/carlyu.jks
           echo "storeFile=keystore/carlyu.jks" > keystore.properties
@@ -86,24 +83,25 @@ jobs:
           echo "storePassword=${SIGNING_STORE_PASSWORD}" >> keystore.properties
 
       - name: Build Preview Release APK
-        env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./gradlew assemblePreviewRelease
+        run: ./gradlew app:assemblePreviewRelease -PAPP_ID="com.android.packageinstaller"
 
-      - name: Find and Rename Preview APKs
-        id: rename_apks
+      - name: Build Stable Release APK
+        run: ./gradlew app:assembleStableRelease -PAPP_ID="com.android.packageinstaller"
+
+      - name: Find and Rename Preview APK
+        id: preview_apk
         run: |
           PROJECT_NAME="InstallerX-Revived"
-          # Pure version tag e.g., 26.03.1a2b3c4
           VERSION_TAG="${{ steps.vars.outputs.YY_MM }}.${{ steps.vars.outputs.SHORT_SHA }}"
 
           APK_DIR=$(find app/build/outputs/apk -type d | grep -iE '/preview/release$' | head -n 1)
+
           if [ -z "$APK_DIR" ]; then
             echo "ERROR: Preview APK output directory not found"
             ls -R app/build/outputs/apk
             exit 1
           fi
+
           APK_PATH=$(find "$APK_DIR" -maxdepth 1 -type f -name "*.apk" | head -n 1)
 
           if [ -z "$APK_PATH" ]; then
@@ -112,21 +110,49 @@ jobs:
             exit 1
           fi
 
-          NEW_APK_NAME="${PROJECT_NAME}-online-${VERSION_TAG}.apk"
+          NEW_APK_NAME="${PROJECT_NAME}-Preview-${VERSION_TAG}.apk"
           NEW_APK_PATH="${APK_DIR}/${NEW_APK_NAME}"
 
           mv "$APK_PATH" "$NEW_APK_PATH"
 
-          echo "apk=${NEW_APK_PATH}" >> $GITHUB_OUTPUT
-          echo "version_tag=${VERSION_TAG}" >> $GITHUB_OUTPUT
+          echo "apk=${NEW_APK_PATH}" >> "$GITHUB_OUTPUT"
+          echo "version_tag=${VERSION_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Find and Rename Stable APK
+        id: stable_apk
+        run: |
+          PROJECT_NAME="InstallerX-Revived"
+          VERSION_TAG="${{ steps.vars.outputs.YY_MM }}.${{ steps.vars.outputs.SHORT_SHA }}"
+
+          APK_DIR=$(find app/build/outputs/apk -type d | grep -iE '/stable/release$' | head -n 1)
+
+          if [ -z "$APK_DIR" ]; then
+            echo "ERROR: Stable APK output directory not found"
+            ls -R app/build/outputs/apk
+            exit 1
+          fi
+
+          APK_PATH=$(find "$APK_DIR" -maxdepth 1 -type f -name "*.apk" | head -n 1)
+
+          if [ -z "$APK_PATH" ]; then
+            echo "ERROR: Could not find the stable APK!"
+            ls -R app/build/outputs/apk
+            exit 1
+          fi
+
+          NEW_APK_NAME="${PROJECT_NAME}-Release-${VERSION_TAG}.apk"
+          NEW_APK_PATH="${APK_DIR}/${NEW_APK_NAME}"
+
+          mv "$APK_PATH" "$NEW_APK_PATH"
+
+          echo "apk=${NEW_APK_PATH}" >> "$GITHUB_OUTPUT"
 
       - name: Delete old preview release and tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Use regex to find tags ending with a hex hash of 7 or more characters
-          # Stable tags like 26.03 or 26.03.01 will not match this regex
           LATEST_TAG=$(git tag --list --sort=-creatordate | grep -E '^[0-9]+\.[0-9]+\.[a-f0-9]{7,}$' | head -n 1)
+
           if [[ -n "$LATEST_TAG" ]]; then
             gh release delete "$LATEST_TAG" --yes || echo "No previous preview release found to delete."
             git push origin --delete "$LATEST_TAG" || echo "No previous preview tag found to delete."
@@ -137,9 +163,8 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Match pure number stable tags, ignoring those with hex hashes
           PREV_TAG=$(git tag --list | grep -E '^[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -Vr | head -n 1)
-          CURR_TAG="${{ steps.rename_apks.outputs.version_tag }}"
+          CURR_TAG="${{ steps.preview_apk.outputs.version_tag }}"
 
           if [ -z "$PREV_TAG" ]; then
             LOG_RANGE=""
@@ -149,8 +174,9 @@ jobs:
 
           CHANGELOG_LIST=$(git log $LOG_RANGE --pretty=format:"- %s (%an)" | grep -v '^-\s*Merge' | head -n 5)
           CHANGELOG_COUNT=$(git log $LOG_RANGE --pretty=format:"- %s (%an)" | grep -v '^-\s*Merge' | wc -l)
-          
+
           CHANGELOG_BODY_OUTPUT=""
+
           if [ -z "$CHANGELOG_LIST" ]; then
             CHANGELOG_BODY_OUTPUT="No changes since the last stable release."
           else
@@ -158,26 +184,28 @@ jobs:
           fi
 
           CHANGELOG_LINK_OUTPUT=""
+
           if [ "$CHANGELOG_COUNT" -gt 5 ]; then
             if [ -z "$PREV_TAG" ]; then
               COMPARE_URL="https://github.com/${{ github.repository }}/commits/main"
             else
               COMPARE_URL="https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${CURR_TAG}"
             fi
+
             CHANGELOG_LINK_OUTPUT="\n\n**Full Changelog:** [\`${PREV_TAG}...${CURR_TAG}\`]($COMPARE_URL)"
           fi
-          
+
           {
             echo "changelog_body<<EOF"
             echo -e "$CHANGELOG_BODY_OUTPUT"
             echo "EOF"
-          } >> $GITHUB_OUTPUT
+          } >> "$GITHUB_OUTPUT"
 
           {
             echo "changelog_full_link<<EOF"
             echo -e "$CHANGELOG_LINK_OUTPUT"
             echo "EOF"
-          } >> $GITHUB_OUTPUT
+          } >> "$GITHUB_OUTPUT"
 
           echo "--- Generated Changelog for Release Body ---"
           echo -e "${CHANGELOG_BODY_OUTPUT}${CHANGELOG_LINK_OUTPUT}"
@@ -186,30 +214,28 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           name: "InstallerX Revived Preview (${{ steps.vars.outputs.SHORT_SHA }})"
-          tag_name: "${{ steps.rename_apks.outputs.version_tag }}"
+          tag_name: "${{ steps.preview_apk.outputs.version_tag }}"
           target_commitish: ${{ github.sha }}
           body: |
             ## 这是自动构建的最新测试版。
+
+            - **这是 Fork 版本，与上游仓库使用的包名不同。**
+            - **本版本使用的包名为 `com.android.packageinstaller`。**
+            - **本版本同时提供 Preview 和 Release 两个构建版本。**
             - **这是一个预发布版本，并非为生产环境准备就绪。**
             - 我们非常鼓励您分享您的看法！
-            
+
             ## This is an automatically built latest Preview release.
+
+            - **This is a Fork version and uses a different package name from the upstream repository.**
+            - **The package name used by this version is `com.android.packageinstaller`.**
+            - **This release provides both Preview and Release builds.**
             - **This is a pre-release version and is not intended for production use.**
             - We appreciate any feedback!
-            
+
             **更新日志（Changelog）:**
             ${{ steps.changelog.outputs.changelog_body }}${{ steps.changelog.outputs.changelog_full_link }}
           prerelease: true
           files: |
-            ${{ steps.rename_apks.outputs.apk }}
-
-      - name: Upload to Telegram
-        env:
-          API_ID: ${{ secrets.API_ID }}
-          API_HASH: ${{ secrets.API_HASH }}
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
-          BOT_CI_SESSION: ${{ secrets.BOT_CI_SESSION }}
-        run: |
-          pip3 install telethon
-          python3 .github/bot.py "${{ steps.rename_apks.outputs.apk }}"
+            ${{ steps.preview_apk.outputs.apk }}
+            ${{ steps.stable_apk.outputs.apk }}
