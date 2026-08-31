@@ -32,4 +32,9 @@ keystore/
 *.iml
 .DS_Store
 /.agents
+
+release.lnk
+module_template.zip
+InstallerX Revived *.bat
+module/
 /logs
